@@ -1,17 +1,21 @@
 package social_mate.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import social_mate.dto.request.PostRequestDto;
 import social_mate.dto.response.PostResponseDto;
 import social_mate.entity.UserPrincipal;
 import social_mate.service.PostService;
+
+import java.util.List;
 
 @Controller
 @RequestMapping("/api/v1/post")
@@ -19,9 +23,46 @@ import social_mate.service.PostService;
 public class PostController {
 
     private final PostService postService;
-    @PostMapping
-    public ResponseEntity<PostResponseDto> createPost(PostRequestDto postRequestDto, @AuthenticationPrincipal UserPrincipal userPrincipal) {
-        PostResponseDto postResponseDto = postService.createPost(postRequestDto, userPrincipal);
+    private final ObjectMapper objectMapper; // 1. Inject ObjectMapper
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<PostResponseDto> createPost(
+            @RequestPart("post") String postJson, // 2. Nhận dạng String thay vì DTO
+            @RequestPart(value = "files", required = false) List<MultipartFile> files,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) throws JsonProcessingException {
+
+        // 3. Tự convert String sang Object
+        PostRequestDto postRequestDto = objectMapper.readValue(postJson, PostRequestDto.class);
+
+        // Gọi service như bình thường
+        PostResponseDto postResponseDto = postService.createPost(postRequestDto, files, userPrincipal);
+
         return ResponseEntity.status(201).body(postResponseDto);
     }
+
+    @GetMapping
+    public ResponseEntity<List<PostResponseDto>> getAllPosts() {
+        List<PostResponseDto> posts = postService.getAllPosts();
+        return ResponseEntity.ok(posts);
+    }
+    @PutMapping("/{id}")
+    public ResponseEntity<PostResponseDto> updatePost(
+            @PathVariable Long id,
+            @RequestBody PostRequestDto postRequestDto,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        PostResponseDto response = postService.updatePost(id, postRequestDto, userPrincipal);
+        return ResponseEntity.ok(response);
+    }
+
+    // API Xóa bài viết: DELETE /api/v1/post/{id}
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deletePost(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        postService.deletePost(id, userPrincipal);
+        return ResponseEntity.ok("Xóa bài viết thành công");
+    }
+
 }
