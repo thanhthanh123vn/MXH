@@ -33,48 +33,67 @@ public class PostService {
 
     private final CloudinaryService cloudinaryService;
 
+
+    @Transactional
     public PostResponseDto createPost(PostRequestDto dto, List<MultipartFile> files, UserPrincipal userPrincipal) {
 
+        // 1. Kiểm tra User
         if (userPrincipal == null) {
             throw new IllegalStateException("UserPrincipal không được null");
         }
-
         User userCurrent = userPrincipal.getUser();
 
+        // 2. Tạo và lưu Post
         Post newPost = postMapper.toPost(dto);
         newPost.setUser(userCurrent);
-
-        // Mặc định các trường chưa có
         newPost.setDeleted(false);
-        newPost.setPrivacyMode(1); // Ví dụ: 1 là Public
+        newPost.setPrivacyMode(1);
 
         Post savedPost = postRepository.save(newPost);
 
-        // Xử lý upload file nếu có
-        if (files != null && !files.isEmpty()) {
+        // 3. Chuẩn bị list media để cập nhật ngược lại vào savedPost
+        List<PostMedia> savedMediaList = new ArrayList<>();
+
+        // 4. Debug xem file có nhận được không
+        if (files == null) {
+            System.out.println("LOG DEBUG: Danh sách 'files' là NULL");
+        } else if (files.isEmpty()) {
+            System.out.println("LOG DEBUG: Danh sách 'files' bị RỖNG (Empty)");
+        } else {
+            System.out.println("LOG DEBUG: Nhận được " + files.size() + " file(s). Bắt đầu upload...");
+
+            // 5. Duyệt và upload
             for (MultipartFile file : files) {
                 try {
-                    // Upload lên Cloudinary
+                    // Upload Cloudinary
                     Map result = cloudinaryService.uploadFile(file);
-
                     String url = (String) result.get("secure_url");
-                    String resourceType = (String) result.get("resource_type"); // "image" hoặc "video"
+                    String resourceType = (String) result.get("resource_type");
 
-                    // Lưu vào PostMedia
+                    // Tạo đối tượng Media
                     PostMedia media = new PostMedia();
-                    media.setPost(savedPost);
+                    media.setPost(savedPost); // Link với Post vừa lưu
                     media.setUrl(url);
-                    media.setType(resourceType); // Lưu loại file (image/video)
-                    mediaRepository.save(media);
+                    media.setType(resourceType);
+
+                    // Lưu vào DB
+                    PostMedia savedMedia = mediaRepository.save(media); //
+
+                    // Thêm vào list tạm để hiển thị ra Response
+                    savedMediaList.add(savedMedia);
 
                 } catch (IOException e) {
+                    // Log lỗi chi tiết nếu upload thất bại
+                    e.printStackTrace();
                     throw new RuntimeException("Lỗi upload file: " + e.getMessage());
                 }
             }
         }
 
 
+        savedPost.setMedia(savedMediaList);
 
+        // 7. Trả về DTO
         return postMapper.toPostResponseDto(savedPost);
     }
     public List<PostResponseDto> getAllPosts() {
