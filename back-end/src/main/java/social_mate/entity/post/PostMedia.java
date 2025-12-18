@@ -23,4 +23,6 @@ public class PostMedia extends AbstractEntity<PostMedia> {
 
     @Column(name = "url")
     private String url;
+    @Column(name = "file_name")
+    private String fileName;
 }

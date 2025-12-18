@@ -32,7 +32,8 @@ public class Post extends AbstractEntity<Post> {
 
     @Column(name = "is_deleted")
     private Boolean deleted;
-
+    @Column(name = "background_color")
+    private String backgroundColor;
     @OneToMany(mappedBy = "post")
     private List<PostMedia> media;
 //

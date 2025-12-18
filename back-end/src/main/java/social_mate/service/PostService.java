@@ -14,12 +14,13 @@ import social_mate.mapper.PostMapper;
 import social_mate.repository.PostMediaRepository;
 import social_mate.repository.PostRepository;
 import social_mate.repository.UserRepository;
-
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -45,69 +46,86 @@ public class PostService {
 
         // 2. Tạo và lưu Post
         Post newPost = postMapper.toPost(dto);
+        if (dto.getPrivacyMode() != null) {
+            newPost.setPrivacyMode(dto.getPrivacyMode());
+        } else {
+            newPost.setPrivacyMode(1);
+        }
+        if (dto.getMetaData() != null && dto.getMetaData().containsKey("backgroundColor")) {
+            newPost.setBackgroundColor((String) dto.getMetaData().get("backgroundColor"));
+        }
         newPost.setUser(userCurrent);
         newPost.setDeleted(false);
         newPost.setPrivacyMode(1);
 
         Post savedPost = postRepository.save(newPost);
-
-        // 3. Chuẩn bị list media để cập nhật ngược lại vào savedPost
         List<PostMedia> savedMediaList = new ArrayList<>();
 
-        // 4. Debug xem file có nhận được không
-        if (files == null) {
-            System.out.println("LOG DEBUG: Danh sách 'files' là NULL");
-        } else if (files.isEmpty()) {
-            System.out.println("LOG DEBUG: Danh sách 'files' bị RỖNG (Empty)");
-        } else {
-            System.out.println("LOG DEBUG: Nhận được " + files.size() + " file(s). Bắt đầu upload...");
+        if (files != null && !files.isEmpty()) {
+            // 1. Upload song song (Multithreading)
+            List<CompletableFuture<PostMedia>> futures = files.stream()
+                    .map(file -> CompletableFuture.supplyAsync(() -> {
+                        try {
 
-            // 5. Duyệt và upload
-            for (MultipartFile file : files) {
-                try {
-                    // Upload Cloudinary
-                    Map result = cloudinaryService.uploadFile(file);
-                    String url = (String) result.get("secure_url");
-                    String resourceType = (String) result.get("resource_type");
 
-                    // Tạo đối tượng Media
-                    PostMedia media = new PostMedia();
-                    media.setPost(savedPost); // Link với Post vừa lưu
-                    media.setUrl(url);
-                    media.setType(resourceType);
+                            // Upload lên Cloudinary
+                            Map result = cloudinaryService.uploadFile(file);
+                            String url = (String) result.get("secure_url");
+                            String resourceType = (String) result.get("resource_type");
 
-                    // Lưu vào DB
-                    PostMedia savedMedia = mediaRepository.save(media); //
+                            // Tạo object nhưng chưa lưu
+                            PostMedia media = new PostMedia();
+                            media.setUrl(url);
+                            media.setType(resourceType);
+                            media.setFileName(file.getOriginalFilename());
+                            media.setPost(savedPost); // Set quan hệ với Post
 
-                    // Thêm vào list tạm để hiển thị ra Response
-                    savedMediaList.add(savedMedia);
+                            return media;
+                        } catch (IOException e) {
+                            throw new RuntimeException("Lỗi upload file: " + file.getOriginalFilename(), e);
+                        }
+                    }))
+                    .collect(Collectors.toList());
 
-                } catch (IOException e) {
-                    // Log lỗi chi tiết nếu upload thất bại
-                    e.printStackTrace();
-                    throw new RuntimeException("Lỗi upload file: " + e.getMessage());
-                }
+            // 2. Chờ tất cả upload xong và thu thập kết quả (Blocking main thread)
+            List<PostMedia> mediaEntities = futures.stream()
+                    .map(CompletableFuture::join) // join() sẽ ném unchecked exception nếu có lỗi
+                    .collect(Collectors.toList());
+
+            // 3. Lưu Batch vào Database ở luồng chính (Đảm bảo Transaction)
+            if (!mediaEntities.isEmpty()) {
+                savedMediaList = mediaRepository.saveAll(mediaEntities);
             }
         }
 
-
         savedPost.setMedia(savedMediaList);
-
-        // 7. Trả về DTO
         return postMapper.toPostResponseDto(savedPost);
     }
-    public List<PostResponseDto> getAllPosts() {
-        List<Post> posts = postRepository.findAll();
+    public List<PostResponseDto> getMyPosts(UserPrincipal userPrincipal) {
+
+        // 1. Lấy thông tin user hiện tại từ UserPrincipal
+        User currentUser = userPrincipal.getUser();
+
+        // 2. Gọi Repository để lấy bài viết của user
+        List<Post> posts = postRepository.findAllByUserOrderByCreatedAtDesc(currentUser);
+
+        // 3. Convert sang DTO
         List<PostResponseDto> postResponseDtos = new ArrayList<>();
+
         for (Post post : posts) {
-            PostResponseDto postResponseDto = postMapper.toPostResponseDto(post);
-            postResponseDtos.add(postResponseDto);
+
+                PostResponseDto postResponseDto = postMapper.toPostResponseDto(post);
+                postResponseDtos.add(postResponseDto);
 
         }
+
+        // Gợi ý: Có thể dùng Stream API cho ngắn gọn hơn:
+        // return posts.stream().map(postMapper::toPostResponseDto).toList();
+
         return postResponseDtos;
     }
     @Transactional
-    public PostResponseDto updatePost(Long postId, PostRequestDto dto, UserPrincipal userPrincipal) {
+    public PostResponseDto updatePost(Long postId, PostRequestDto dto, UserPrincipal userPrincipal ) {
         // 1. Tìm bài viết
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Post not found with id: " + postId));
@@ -120,8 +138,7 @@ public class PostService {
         // 3. Cập nhật nội dung text
         post.setContent(dto.getContent());
 
-        // 4. Xử lý Media (Ảnh/Video)
-        // Cách đơn giản nhất: Xóa hết cái cũ, lưu lại list cái mới từ DTO gửi lên
+
         if (dto.getMediaUrls() != null) {
             // Xóa media cũ
             mediaRepository.deleteAllByPost(post);
@@ -132,6 +149,7 @@ public class PostService {
                 PostMedia media = new PostMedia();
                 media.setPost(post);
                 media.setUrl(url);
+
 
                 media.setType("image");
                 mediaRepository.save(media);
@@ -147,6 +165,7 @@ public class PostService {
     }
 
     // --- CHỨC NĂNG XÓA BÀI VIẾT (SOFT DELETE) ---
+
     public void deletePost(Long postId, UserPrincipal userPrincipal) {
         // 1. Tìm bài viết
         Post post = postRepository.findById(postId)

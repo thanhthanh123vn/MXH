@@ -16,6 +16,7 @@ import social_mate.dto.response.PostResponseDto;
 import social_mate.entity.UserPrincipal;
 import social_mate.service.PostService;
 
+import java.util.Collections;
 import java.util.List;
 
 @Controller
@@ -28,7 +29,7 @@ public class PostController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<PostResponseDto> createPost(
-            @RequestPart("post") String postJson, // 2. Nhận dạng String thay vì DTO
+            @RequestPart("post") String postJson,
             @RequestPart(value = "files", required = false) List<MultipartFile> files,
             @AuthenticationPrincipal UserPrincipal userPrincipal) throws JsonProcessingException {
 
@@ -41,29 +42,32 @@ public class PostController {
         return ResponseEntity.status(201).body(postResponseDto);
     }
 
-    @GetMapping
-    public ResponseEntity<List<PostResponseDto>> getAllPosts() {
-        List<PostResponseDto> posts = postService.getAllPosts();
+    @GetMapping()
+    public ResponseEntity<List<PostResponseDto>> getMyPosts(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        // Gọi hàm getMyPosts vừa viết ở Service
+        List<PostResponseDto> posts = postService.getMyPosts(userPrincipal);
+
         return ResponseEntity.ok(posts);
     }
     @PutMapping("/{id}")
     public ResponseEntity<PostResponseDto> updatePost(
             @PathVariable Long id,
             @RequestBody PostRequestDto postRequestDto,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal)  {
 
         PostResponseDto response = postService.updatePost(id, postRequestDto, userPrincipal);
         return ResponseEntity.ok(response);
     }
 
-    // API Xóa bài viết: DELETE /api/v1/post/{id}
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> deletePost(
+    public ResponseEntity<?> deletePost(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
         postService.deletePost(id, userPrincipal);
-        return ResponseEntity.ok("Xóa bài viết thành công");
+        // Trả về JSON thay vì String thuần túy
+        return ResponseEntity.ok(Collections.singletonMap("message", "Xóa bài viết thành công"));
     }
-
 }
