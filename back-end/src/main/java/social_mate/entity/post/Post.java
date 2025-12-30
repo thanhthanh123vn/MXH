@@ -36,9 +36,9 @@ public class Post extends AbstractEntity<Post> {
     private String backgroundColor;
     @OneToMany(mappedBy = "post")
     private List<PostMedia> media;
-//
-//    @OneToMany(mappedBy = "post")
-//    private List<Comment> comments;
+
+    @OneToMany(mappedBy = "post")
+    private List<Comment> comments;
 //
 //    @OneToMany(mappedBy = "post")
 //    private List<Like> likes;

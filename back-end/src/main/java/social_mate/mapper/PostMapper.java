@@ -16,6 +16,7 @@ public interface PostMapper {
 
 
     @Mapping(source = "id", target = "id")
+
     @Mapping(source = "media", target = "mediaUrls")
     @Mapping(source = "media", target = "media", qualifiedByName = "mapMediaToDto")
     PostResponseDto toPostResponseDto(Post post);

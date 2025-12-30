@@ -20,9 +20,11 @@ public class PostResponseDto {
     private UserResponseDto user;
     private boolean deleted;
 
-
+    private Long originalPostId;
     private List<MediaResponse> media;
-
+    private PostResponseDto originalPost;
+    private long likeCount; // Tổng số lượt like
+    private boolean liked;
     @Getter
     @Setter
     public static class MediaResponse {

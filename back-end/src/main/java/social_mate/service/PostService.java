@@ -9,8 +9,10 @@ import social_mate.dto.response.PostResponseDto;
 import social_mate.entity.User;
 import social_mate.entity.UserPrincipal;
 import social_mate.entity.post.Post;
+import social_mate.entity.post.PostLike;
 import social_mate.entity.post.PostMedia;
 import social_mate.mapper.PostMapper;
+import social_mate.repository.PostLikeRepository;
 import social_mate.repository.PostMediaRepository;
 import social_mate.repository.PostRepository;
 import social_mate.repository.UserRepository;
@@ -19,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -33,7 +36,7 @@ public class PostService {
 
 
     private final CloudinaryService cloudinaryService;
-
+    private final PostLikeRepository postLikeRepository;
 
     @Transactional
     public PostResponseDto createPost(PostRequestDto dto, List<MultipartFile> files, UserPrincipal userPrincipal) {
@@ -101,27 +104,31 @@ public class PostService {
         savedPost.setMedia(savedMediaList);
         return postMapper.toPostResponseDto(savedPost);
     }
+
+
     public List<PostResponseDto> getMyPosts(UserPrincipal userPrincipal) {
-
-        // 1. Lấy thông tin user hiện tại từ UserPrincipal
         User currentUser = userPrincipal.getUser();
-
-        // 2. Gọi Repository để lấy bài viết của user
         List<Post> posts = postRepository.findAllByUserOrderByCreatedAtDesc(currentUser);
-
-        // 3. Convert sang DTO
         List<PostResponseDto> postResponseDtos = new ArrayList<>();
 
         for (Post post : posts) {
+            PostResponseDto dto = postMapper.toPostResponseDto(post);
+            if (post.getOriginalPostId() != null) {
+                // Tìm bài viết gốc trong DB
+                Post origin = postRepository.findById(post.getOriginalPostId()).orElse(null);
+                if (origin != null) {
+                    // Convert bài gốc sang DTO và gán vào
+                    PostResponseDto originDto = postMapper.toPostResponseDto(origin);
+                    dto.setOriginalPost(originDto);
+                }
+            }
 
-                PostResponseDto postResponseDto = postMapper.toPostResponseDto(post);
-                postResponseDtos.add(postResponseDto);
 
+            dto.setLikeCount(postLikeRepository.countByPost(post));
+            dto.setLiked(postLikeRepository.existsByUserAndPost(currentUser, post));
+
+            postResponseDtos.add(dto);
         }
-
-        // Gợi ý: Có thể dùng Stream API cho ngắn gọn hơn:
-        // return posts.stream().map(postMapper::toPostResponseDto).toList();
-
         return postResponseDtos;
     }
     @Transactional
@@ -180,6 +187,25 @@ public class PostService {
         post.setDeleted(true);
         postRepository.save(post);
     }
+    @Transactional
+    public void toggleLike(Long postId, UserPrincipal userPrincipal) {
+        User user = userPrincipal.getUser();
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new RuntimeException("Post not found"));
 
+        // Kiểm tra xem đã like chưa
+        Optional<PostLike> existingLike = postLikeRepository.findByUserAndPost(user, post);
+
+        if (existingLike.isPresent()) {
+            // Nếu like rồi -> Xóa like (Unlike)
+            postLikeRepository.delete(existingLike.get());
+        } else {
+            // Nếu chưa like -> Tạo like mới
+            PostLike newLike = new PostLike();
+            newLike.setUser(user);
+            newLike.setPost(post);
+            postLikeRepository.save(newLike);
+        }
+    }
 
 }

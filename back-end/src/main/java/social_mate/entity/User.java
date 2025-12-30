@@ -6,7 +6,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
-import lombok.Builder.Default;
 import lombok.Getter;
 import lombok.Setter;
 import social_mate.entity.enums.AuthProvider;

@@ -70,4 +70,14 @@ public class PostController {
         // Trả về JSON thay vì String thuần túy
         return ResponseEntity.ok(Collections.singletonMap("message", "Xóa bài viết thành công"));
     }
+    @PostMapping("/{postId}/like")
+    public ResponseEntity<?> toggleLike(
+            @PathVariable Long postId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        postService.toggleLike(postId, userPrincipal);
+
+        // Trả về map đơn giản hoặc gọi lại service để lấy số like mới nhất nếu muốn update realtime UI
+        return ResponseEntity.ok(Collections.singletonMap("message", "Success"));
+    }
 }
