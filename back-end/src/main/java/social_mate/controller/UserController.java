@@ -45,5 +45,13 @@ public class UserController {
 				userService.searchUsers(keyword, userPrincipal)
 		);
 	}
+	@GetMapping()
+	public ResponseEntity<List<UserResponseDto>> getUsersByUsername(@RequestParam(name = "username") String username ){
+
+		List<UserResponseDto> userResponse=userService.getUsersByUsername(username);
+
+
+		return ResponseEntity.status(200).body(userResponse);
+	}
 
 }

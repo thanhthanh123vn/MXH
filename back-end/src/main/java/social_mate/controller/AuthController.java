@@ -27,55 +27,55 @@ import social_mate.service.AuthService;
 @RequiredArgsConstructor
 public class AuthController {
 
-	private final AuthService authService;
+    private final AuthService authService;
 
-	@PostMapping("/register")
-	public ResponseEntity<?> register(@RequestBody RegisterRequestDto registerRequestDto) {
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody RegisterRequestDto registerRequestDto) {
 
-		Map<String, String> response = new HashMap<>();
+        Map<String, String> response = new HashMap<>();
 
-		authService.register(registerRequestDto);
+        authService.register(registerRequestDto);
 
-		response.put("message", "otp send to your emal");
+        response.put("message", "otp send to your emal");
 
-		return ResponseEntity.status(200).body(response);
+        return ResponseEntity.status(200).body(response);
 
-	}
+    }
 
-	@PostMapping("/verify-register")
-	public ResponseEntity<UserResponseDto> verifyRigister(@RequestBody OtpRequestDto otpRequestDto) {
+    @PostMapping("/verify-register")
+    public ResponseEntity<UserResponseDto> verifyRigister(@RequestBody OtpRequestDto otpRequestDto) {
 
-		UserResponseDto newUser = authService.verifyRegister(otpRequestDto);
+        UserResponseDto newUser = authService.verifyRegister(otpRequestDto);
 
-		return ResponseEntity.status(201).body(newUser);
+        return ResponseEntity.status(201).body(newUser);
 
-	}
+    }
 
-	@PostMapping("/login")
-	public ResponseEntity<TokenResponseDto> login(@RequestBody LoginRequestDto loginRequestDto) {
+    @PostMapping("/login")
+    public ResponseEntity<TokenResponseDto> login(@RequestBody LoginRequestDto loginRequestDto) {
 
-		TokenResponseDto response = authService.authenticate(loginRequestDto);
+        TokenResponseDto response = authService.authenticate(loginRequestDto);
 
-		return ResponseEntity.status(200).body(response);
-	}
+        return ResponseEntity.status(200).body(response);
+    }
 
-	@PostMapping("/refresh-token")
-	public ResponseEntity<TokenResponseDto> refreshToken(@CookieValue String refreshToken) {
+    @PostMapping("/refresh-token")
+    public ResponseEntity<TokenResponseDto> refreshToken(@CookieValue String refreshToken) {
 
-		TokenResponseDto response = authService.refreshToken(refreshToken);
+        TokenResponseDto response = authService.refreshToken(refreshToken);
 
-		return ResponseEntity.status(200).body(response);
+        return ResponseEntity.status(200).body(response);
 
-	}
+    }
 
-	@PostMapping("/login-with-google")
-	public ResponseEntity<TokenResponseDto> loginWithGoogle(@Valid @RequestBody GoogleTokenRequestDto idToken)
-			throws GeneralSecurityException, IOException {
+    @PostMapping("/login-with-google")
+    public ResponseEntity<TokenResponseDto> loginWithGoogle(@Valid @RequestBody GoogleTokenRequestDto idToken)
+            throws GeneralSecurityException, IOException {
 
-		TokenResponseDto response = authService.verifyGoogleIdTokenAndLogin(idToken);
+        TokenResponseDto response = authService.verifyGoogleIdTokenAndLogin(idToken);
 
-		return ResponseEntity.status(200).body(response);
+        return ResponseEntity.status(200).body(response);
 
-	}
+    }
 
 }

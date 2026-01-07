@@ -18,7 +18,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 	Optional<User> findByEmail(String email);
 	Optional<User> findByProviderId(String providerId);
 	Optional<User> findByEmailAndAuthProvider(String email, AuthProvider authProvider);
-
+	List<User> findByUsernameContainingIgnoreCase(String username);
 	@Query("""
     SELECT u FROM User u
     WHERE u.id <> :currentUserId
@@ -32,7 +32,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
 			@Param("keyword") String keyword,
 			@Param("currentUserId") Long currentUserId
 	);
-
-
 
 }

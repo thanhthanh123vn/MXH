@@ -11,6 +11,7 @@ import social_mate.entity.enums.FriendViewStatus;
 public class UserSearchResponseDto {
     private Long id;
     private String username;
+    private String email;
     private String avatar;
     private FriendViewStatus friendStatus;
 }

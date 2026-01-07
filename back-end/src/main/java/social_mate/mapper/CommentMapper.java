@@ -8,6 +8,10 @@ import social_mate.dto.response.UserResponseDto;
 import social_mate.entity.post.Comment;
 import social_mate.entity.User;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+
 @Mapper(componentModel = "spring")
 public interface CommentMapper {
 
@@ -16,12 +20,19 @@ public interface CommentMapper {
 
     UserResponseDto toUserDto(User user);
 
-
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "post", ignore = true)
     Comment toEntity(CommentRequestDto request);
 
 
+    default LocalDateTime map(Instant instant) {
+        if (instant == null) {
+            return null;
+        }
+
+        return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+    }
 }

@@ -30,7 +30,7 @@ import social_mate.security.oauth2.OAuth2UserService;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-	private final String[] PUBLIC_ENPOINTS = { "/api/v1/auth/*", "/login", "/error" };
+	private final String[] PUBLIC_ENPOINTS = { "/api/v1/auth/*", "/login", "/error", "/ws/**" };
 	private final UserDetailsService userDetailsService;
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 	private final CustomAuthenticationEntryPoint authenticationEntryPoint;

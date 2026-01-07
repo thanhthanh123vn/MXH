@@ -16,77 +16,76 @@ import social_mate.repository.UserRepository;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
-	// Inject UserMapper để thực hiện chuyển đổi
-	private final UserMapper userMapper;
-	private final UserRepository userRepository;
-	private final FriendRepository friendRepository;
-
-	/**
-	 * Lấy thông tin DTO của người dùng đã được xác thực.
-	 * * @param userPrincipal Đối tượng principal chứa thông tin người dùng.
-	 * @return UserResponseDto chứa thông tin public của người dùng.
-	 */
-	public UserResponseDto getMe(UserPrincipal userPrincipal) {
-		if (userPrincipal == null) {
-			// Điều này không nên xảy ra nếu được gọi từ controller đã check
-			// Hoặc bạn có thể ném một exception cụ thể
-			throw new IllegalStateException("UserPrincipal không được null");
-		}
-
-		// Lấy User entity từ principal
-		User currentUser = userPrincipal.getUser();
-
-		// Chuyển đổi User entity sang DTO và trả về
-		return userMapper.toUserResponseDto(currentUser);
-	}
+    // Inject UserMapper để thực hiện chuyển đổi
+    private final UserMapper userMapper;
+    private final UserRepository userRepository;
+    private final FriendRepository friendRepository;
 
 
-	// Trong tương lai, bạn có thể thêm các phương thức khác tại đây
-	// ví dụ: updateUserProfile, getUserById, v.v.
+    public UserResponseDto getMe(UserPrincipal userPrincipal) {
+        if (userPrincipal == null) {
+            // Điều này không nên xảy ra nếu được gọi từ controller đã check
+            // Hoặc bạn có thể ném một exception cụ thể
+            throw new IllegalStateException("UserPrincipal không được null");
+        }
 
-	/**
-	 * lấy danh sách user theo keyword tìm kiếm dựa vào username
-	 *
-	 * 	 * @param keyword userPrincipal
-	 * @return list user search theo keyword gồm thông tin theo UserSearchResponseDto
-	 */
-	public List<UserSearchResponseDto> searchUsers(String keyword, UserPrincipal userPrincipal){
-		Long currentUserId = userPrincipal.getUser().getId();
-		List<User> users = userRepository.searchUsers(keyword, currentUserId);
-		return users.stream().map(user -> {
-			UserSearchResponseDto res = userMapper.toUserSearchResponseDto(user);
-			Optional<Friend> friendOpt = friendRepository.findFriendBetweenUsers(currentUserId, user.getId());
-			res.setFriendStatus(mapFriendStatus(friendOpt,currentUserId));
-			return res;
-		}).toList();
-	}
+        // Lấy User entity từ principal
+        User currentUser = userPrincipal.getUser();
+
+        // Chuyển đổi User entity sang DTO và trả về
+        return userMapper.toUserResponseDto(currentUser);
+    }
 
 
-	private FriendViewStatus mapFriendStatus(Optional<Friend> friendOpt, Long currentUserId) {
-		if (friendOpt.isEmpty()) {
-			return FriendViewStatus.NONE;
-		}
+    /**
+     * lấy danh sách user theo keyword tìm kiếm dựa vào username
+     * <p>
+     * * @param keyword userPrincipal
+     *
+     * @return list user search theo keyword gồm thông tin theo UserSearchResponseDto
+     */
+    public List<UserSearchResponseDto> searchUsers(String keyword, UserPrincipal userPrincipal) {
+        Long currentUserId = userPrincipal.getUser().getId();
+        List<User> users = userRepository.searchUsers(keyword, currentUserId);
+        return users.stream().map(user -> {
+            UserSearchResponseDto res = userMapper.toUserSearchResponseDto(user);
+            Optional<Friend> friendOpt = friendRepository.findFriendBetweenUsers(currentUserId, user.getId());
+            res.setFriendStatus(mapFriendStatus(friendOpt, currentUserId));
+            return res;
+        }).toList();
+    }
 
-		Friend f = friendOpt.get();
-		switch (f.getStatus()) {
-			case BLOCKED:
-				return FriendViewStatus.BLOCKED;
 
-			case ACCEPTED:
-				return FriendViewStatus.FRIEND;
+    private FriendViewStatus mapFriendStatus(Optional<Friend> friendOpt, Long currentUserId) {
+        if (friendOpt.isEmpty()) {
+            return FriendViewStatus.NONE;
+        }
 
-			case PENDING:
-				return Objects.equals(f.getSenderId(), currentUserId)
-						? FriendViewStatus.SENT_REQUEST
-						: FriendViewStatus.RECEIVED_REQUEST;
+        Friend f = friendOpt.get();
+        switch (f.getStatus()) {
+            case BLOCKED:
+                return FriendViewStatus.BLOCKED;
 
-			default:
-				return FriendViewStatus.NONE;
-		}
-	}
+            case ACCEPTED:
+                return FriendViewStatus.FRIEND;
+
+            case PENDING:
+                return Objects.equals(f.getSenderId(), currentUserId)
+                        ? FriendViewStatus.SENT_REQUEST
+                        : FriendViewStatus.RECEIVED_REQUEST;
+
+            default:
+                return FriendViewStatus.NONE;
+        }
+    }
+
+    public List<UserResponseDto> getUsersByUsername(String username) {
+        return userRepository.findByUsernameContainingIgnoreCase(username).stream().map(userMapper::toUserResponseDto).collect(Collectors.toList());
+    }
 }

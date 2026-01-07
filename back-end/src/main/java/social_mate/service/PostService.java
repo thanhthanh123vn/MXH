@@ -108,7 +108,7 @@ public class PostService {
 
     public List<PostResponseDto> getMyPosts(UserPrincipal userPrincipal) {
         User currentUser = userPrincipal.getUser();
-        List<Post> posts = postRepository.findAllByUserOrderByCreatedAtDesc(currentUser);
+        List<Post> posts = postRepository.findAllByUserOrderByDateDesc(currentUser);
         List<PostResponseDto> postResponseDtos = new ArrayList<>();
 
         for (Post post : posts) {
