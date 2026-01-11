@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -16,6 +17,8 @@ public class CommentResponseDto {
     private String content;
     private LocalDateTime createdAt;
     private UserResponseDto user;
-
-
+    private Long parentId;
+    private long likeCount;
+    private boolean liked; // User hiện tại đã like chưa
+    private List<CommentResponseDto> replies;
 }

@@ -7,8 +7,10 @@ import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 import social_mate.entity.User;
+import social_mate.entity.UserDetail;
 import social_mate.entity.UserPrincipal;
 import social_mate.entity.enums.AuthProvider;
+import social_mate.repository.UserDetailRepository;
 import social_mate.repository.UserRepository;
 
 @Service
@@ -16,6 +18,7 @@ import social_mate.repository.UserRepository;
 public class UserDetailService implements UserDetailsService {
 
 	private final UserRepository userRepository;
+	private final UserDetailRepository userDetailRepository;
 
 	@Override
 	public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -54,6 +57,15 @@ public class UserDetailService implements UserDetailsService {
 			throw new UsernameNotFoundException("Cannot find user with username: " + username, e);
 		}
 
+	}
+	public UserDetail createUserDetailForUser(User user) {
+		UserDetail detail = new UserDetail();
+		detail.setUser(user);
+		detail.setBio("");
+		detail.setJobTitle("");
+		detail.setCoverPhoto("https://res.cloudinary.com/dgroxcuap/image/upload/v1763231600/avatar-blank_da7xpf.jpg");
+		detail.setAddress("");
+		return userDetailRepository.save(detail);
 	}
 
 }

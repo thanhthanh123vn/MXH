@@ -62,4 +62,12 @@ public class CommentController {
         commentService.deleteComment(commentId, userPrincipal);
         return ResponseEntity.ok(Collections.singletonMap("message", "Xóa bình luận thành công"));
     }
+    @PostMapping("/comments/{commentId}/like")
+    public ResponseEntity<?> toggleLike(
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        commentService.toggleCommentLike(commentId, userPrincipal);
+        return ResponseEntity.ok(Collections.singletonMap("message", "Thao tác thành công"));
+    }
 }

@@ -5,5 +5,6 @@ public enum FriendViewStatus {
     SENT_REQUEST,
     RECEIVED_REQUEST,
     FRIEND,
-    BLOCKED
+    BLOCKED,
+    BLOCKED_BY_OTHER
 }

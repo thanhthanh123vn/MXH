@@ -2,6 +2,8 @@ package social_mate.repository;
 
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import social_mate.entity.User;
 import social_mate.entity.post.Post;
@@ -22,4 +24,7 @@ public interface PostLikeRepository extends JpaRepository<PostLike, Long> {
 
     // Xóa like theo post (dùng khi xóa bài viết)
     void deleteAllByPost(Post post);
+// điếm lượt like theo id post
+    @Query("SELECT COUNT(pl) FROM PostLike pl WHERE pl.post.id = :postId")
+    int countByPostId(@Param("postId") Long postId);
 }

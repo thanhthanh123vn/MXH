@@ -182,4 +182,29 @@ public class FriendService {
 
         friendRepository.delete(friend);
     }
+    //unfriend
+    public void unfriend(Long friendUserId, UserPrincipal principal) throws BadRequestException {
+
+        Long currentUserId = principal.getUser().getId();
+
+        // 1. Không cho tự hủy chính mình
+        if (currentUserId.equals(friendUserId)) {
+            throw new BadRequestException("Cannot unfriend yourself");
+        }
+
+        // 2. Tìm quan hệ bạn bè
+        Friend friend = friendRepository
+                .findFriendBetweenUsers(currentUserId, friendUserId)
+                .orElseThrow(() ->
+                        new RuntimeException("Friend relationship not found")
+                );
+
+        // 3. unfriend khi là bạn
+        if (friend.getStatus() != FriendshipStatus.ACCEPTED) {
+            throw new BadRequestException("You are not friends");
+        }
+
+        // 4. delete record
+        friendRepository.delete(friend);
+    }
 }

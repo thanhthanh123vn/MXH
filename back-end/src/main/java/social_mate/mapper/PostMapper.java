@@ -5,6 +5,7 @@ import org.mapstruct.Mapping;
 import org.mapstruct.Named;
 import social_mate.dto.request.PostRequestDto;
 import social_mate.dto.response.PostResponseDto;
+import social_mate.dto.response.ProfilePostResponseDto;
 import social_mate.entity.post.Post;
 import social_mate.entity.post.PostMedia;
 
@@ -46,4 +47,8 @@ public interface PostMapper {
             return dto;
         }).collect(Collectors.toList());
     }
+// mapper cho post profile
+    @Mapping(target = "mediaUrls", ignore = true)
+    @Mapping(target = "totalLikes", ignore = true)
+    ProfilePostResponseDto toDto(Post post);
 }

@@ -12,6 +12,12 @@ import java.util.List;
 
 @Repository
 public interface PostRepository extends JpaRepository<Post, Long> {
+//     @Query("SELECT p FROM Post p WHERE p.deleted = false")
+//     List<Post> findAllByUserOrderByCreatedAtDesc(User user);
+    // ổng bài post
+    int countByUserId(Long userId);
+
+    List<Post> findByUserIdOrderByCreatedAtDesc(Long userId);
     @Query("SELECT p FROM Post p WHERE p.user = :user AND p.deleted = false ORDER BY COALESCE(p.updatedAt, p.createdAt) DESC")
     List<Post> findAllByUserOrderByDateDesc(@Param("user") User user);
 }

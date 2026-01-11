@@ -51,15 +51,15 @@ public class FriendController {
     }
 
     //  Accept
-    @PutMapping("/accept")
+    @PutMapping("/accept/{targetUserId}")
     public ResponseEntity<FriendStatusResponseDto> acceptFriendRequest(
-            @RequestBody @Valid RespondFriendRequestDto request,
+            @PathVariable Long targetUserId,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
-        friendService.acceptFriendRequest(request.getSenderId(), principal);
+        friendService.acceptFriendRequest(targetUserId, principal);
         return ResponseEntity.ok(
                 FriendStatusResponseDto.builder()
-                        .userId(request.getSenderId())
+                        .userId(targetUserId)
                         .friendStatus(FriendViewStatus.FRIEND)
                         .build()
         );
@@ -67,15 +67,15 @@ public class FriendController {
 
 
     // Reject
-    @PutMapping("/reject")
+    @PutMapping("/reject/{targetUserId}")
     public ResponseEntity<FriendStatusResponseDto> rejectFriendRequest(
-            @RequestBody @Valid RespondFriendRequestDto request,
+            @PathVariable Long targetUserId,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
-        friendService.rejectFriendRequest(request.getSenderId(), userPrincipal);
+        friendService.rejectFriendRequest(targetUserId, userPrincipal);
         return ResponseEntity.ok(
                 FriendStatusResponseDto.builder()
-                        .userId(request.getSenderId())
+                        .userId(targetUserId)
                         .friendStatus(FriendViewStatus.NONE)
                         .build()
         );
@@ -109,5 +109,17 @@ public class FriendController {
                         .build()
         );
     }
-
+    @DeleteMapping("unfriend/{friendUserId}")
+    public ResponseEntity<FriendStatusResponseDto> unfriend(
+            @PathVariable Long friendUserId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) throws BadRequestException {
+        friendService.unfriend(friendUserId, userPrincipal);
+        return ResponseEntity.ok(
+                FriendStatusResponseDto.builder()
+                        .userId(friendUserId)
+                        .friendStatus(FriendViewStatus.NONE)
+                        .build()
+        );
+    }
 }

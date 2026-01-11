@@ -3,12 +3,11 @@ package social_mate.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import lombok.RequiredArgsConstructor;
+import social_mate.dto.request.UpdateProfileRequestDto;
+import social_mate.dto.response.ProfileResponseDto;
 import social_mate.dto.response.UserResponseDto;
 import social_mate.dto.response.UserSearchResponseDto;
 import social_mate.entity.UserPrincipal;
@@ -54,4 +53,20 @@ public class UserController {
 		return ResponseEntity.status(200).body(userResponse);
 	}
 
+	@GetMapping("/profile/{userId}")
+	public ResponseEntity<ProfileResponseDto> getUser(@PathVariable Long userId,
+													  @AuthenticationPrincipal UserPrincipal userPrincipal) {
+		return ResponseEntity.ok(userService.getUserProfile(userId,userPrincipal));
+	}
+	//edit profile
+	@PutMapping("/profile")
+	public ProfileResponseDto updateProfile(
+			@AuthenticationPrincipal UserPrincipal userPrincipal,
+			@RequestBody UpdateProfileRequestDto request
+	) {
+		return userService.updateProfile(
+				userPrincipal.getUser().getId(),
+				request
+		);
+	}
 }

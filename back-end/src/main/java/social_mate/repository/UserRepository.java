@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import social_mate.dto.response.ProfileResponseDto;
 import social_mate.entity.User;
 import social_mate.entity.enums.AuthProvider;
 
@@ -32,5 +33,24 @@ public interface UserRepository extends JpaRepository<User, Long> {
 			@Param("keyword") String keyword,
 			@Param("currentUserId") Long currentUserId
 	);
+	@Query("""
+        SELECT new social_mate.dto.response.ProfileResponseDto(
+            u.id,
+            u.username,
+            u.email,
+            u.avatar,
+            d.bio,
+            d.jobTitle,
+            d.coverPhoto,
+            d.address,
+            0,
+            0,
+            social_mate.entity.enums.FriendViewStatus.NONE   
+        )
+        FROM User u
+        LEFT JOIN UserDetail d ON d.user.id = u.id
+        WHERE u.id = :userId
+    """)
+	Optional<ProfileResponseDto> findProfileByUserId(@Param("userId") Long userId);
 
 }

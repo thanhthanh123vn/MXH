@@ -109,7 +109,8 @@ public class AuthService {
 		newUser.setAuthProvider(AuthProvider.DEFAULT);
 
 		User userSaved = userRepository.save(newUser);
-
+		// Tạo UserDetail mặc định ngay sau khi tạo User
+		userDetailService.createUserDetailForUser(userSaved);
 		clearSession();
 
 		return userMapper.toUserResponseDto(userSaved);

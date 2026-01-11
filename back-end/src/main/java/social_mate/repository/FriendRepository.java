@@ -47,5 +47,12 @@ public interface FriendRepository extends JpaRepository<Friend, Long> {
             long receiverId,
             FriendshipStatus status
     );
+// tổng bạn bè
+    @Query("""
+        SELECT COUNT(f) FROM Friend f
+        WHERE f.status = 'ACCEPTED'
+        AND (f.senderId = :userId OR f.receiverId = :userId)
+    """)
+    int countFriends(Long userId);
 
 }

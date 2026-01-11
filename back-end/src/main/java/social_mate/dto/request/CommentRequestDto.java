@@ -7,5 +7,5 @@ import lombok.Data;
 public class CommentRequestDto {
     @NotBlank(message = "Nội dung bình luận không được để trống")
     private String content;
-
+    private Long parentId;
 }

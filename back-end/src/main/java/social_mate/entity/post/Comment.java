@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import social_mate.entity.AbstractEntity;
 import social_mate.entity.User;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "Comment")
@@ -12,7 +14,6 @@ import social_mate.entity.User;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-
 public class Comment extends AbstractEntity<Comment> {
 
     @Column(columnDefinition = "TEXT", nullable = false)
@@ -26,4 +27,18 @@ public class Comment extends AbstractEntity<Comment> {
     @JoinColumn(name = "post_id", nullable = false)
     @JsonIgnore
     private Post post;
+
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id") // ID của bình luận cha
+    @JsonIgnore
+    private Comment parentComment;
+
+    @OneToMany(mappedBy = "parentComment", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Comment> replies = new ArrayList<>();
+
+    // --- BỔ SUNG CHO TÍNH NĂNG LIKE ---
+    @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private List<CommentLike> likes = new ArrayList<>();
 }

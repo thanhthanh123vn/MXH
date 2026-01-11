@@ -25,6 +25,9 @@ public interface CommentMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "post", ignore = true)
+    @Mapping(target = "parentComment", ignore = true) // Set thủ công trong Service sau khi findById
+    @Mapping(target = "replies", ignore = true)
+    @Mapping(target = "likes", ignore = true)
     Comment toEntity(CommentRequestDto request);
 
 
