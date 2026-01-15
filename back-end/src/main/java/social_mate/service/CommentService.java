@@ -60,6 +60,7 @@ public class CommentService {
     }
 
     // --- LẤY DANH SÁCH BÌNH LUẬN (ĐỆ QUY ĐỂ LẤY REPLIES) ---
+    @Transactional(readOnly = true)
     public List<CommentResponseDto> getComments(Long postId, UserPrincipal userPrincipal) {
         User currentUser = (userPrincipal != null) ? userPrincipal.getUser() : null;
 
