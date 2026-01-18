@@ -10,11 +10,13 @@ import org.springframework.web.multipart.MultipartFile;
 import social_mate.config.WebSocketEventListener;
 import social_mate.dto.request.MessageFileRequestDto;
 import social_mate.dto.request.MessageTextRequestDto;
+import social_mate.dto.request.NotificationRequestDto;
 import social_mate.dto.response.ConversationResponseDto;
 import social_mate.dto.response.MessageResponseDto;
 import social_mate.entity.*;
 import social_mate.entity.enums.MessageStatus;
 import social_mate.entity.enums.MessageType;
+import social_mate.entity.enums.NotificationType;
 import social_mate.mapper.MessageMapper;
 import social_mate.repository.ConversationRepository;
 import social_mate.repository.MessageRepository;
@@ -36,6 +38,7 @@ public class MessageService {
     private final MessageMapper messageMapper;
     private final WebSocketEventListener webSocketEventListener;
     private final ConversationService conversationService;
+    private final NotificationService notificationService;
 
 
     @Transactional
@@ -56,6 +59,9 @@ public class MessageService {
         sendToWebSocket(savedMessage, conversation);
 
         updateMessageStatusBasedOnRecipients(savedMessage, conversation, sender.getId());
+
+        sendNotificationTypeMessage(savedMessage, conversation, userPrincipal);
+
 
     }
 
@@ -90,6 +96,8 @@ public class MessageService {
 
             sendToWebSocket(savedMessage, conversation);
             updateMessageStatusBasedOnRecipients(savedMessage, conversation, sender.getId());
+
+            sendNotificationTypeMessage(savedMessage, conversation, userPrincipal);
 
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -157,6 +165,47 @@ public class MessageService {
                     "/topic/conversation/" + conversation.getId() + "/status",
                     new MessageStatusService.MessageStatusUpdate(message.getId(), MessageStatus.SEEN)
             );
+        }
+    }
+
+    private void sendNotificationTypeMessage(Message message, Conversation conversation, UserPrincipal senderPrincipal) {
+        Long senderId = senderPrincipal.getUser().getId();
+        Long conversationId = conversation.getId();
+
+        // 1. Lọc danh sách người nhận
+        List<Long> recipientIds = conversation.getParticipants().stream()
+                .map(participant -> participant.getUser().getId())
+                .filter(userId -> !userId.equals(senderId)) // Loại trừ người gửi
+                .collect(Collectors.toList());
+
+        // 2. Xác định nội dung thông báo
+        String notificationContent;
+        if (message.getMessageType() == MessageType.FILE) {
+            notificationContent = "Đã gửi một tệp đính kèm: " + message.getFileName();
+        } else {
+            notificationContent = message.getContent();
+        }
+
+        // 3. Duyệt từng người nhận và kiểm tra điều kiện tạo thông báo
+        for (Long recipientId : recipientIds) {
+
+            // [LOGIC MỚI]: Kiểm tra xem user có đang xem cuộc trò chuyện này không
+            boolean isViewingConversation = webSocketEventListener.isUserInConversation(conversationId, recipientId);
+
+            // Nếu user ĐANG xem cuộc trò chuyện -> KHÔNG tạo thông báo
+            if (isViewingConversation) {
+                continue;
+            }
+
+            // Ngược lại (User Offline hoặc User Online nhưng ở trang khác) -> TẠO thông báo
+            NotificationRequestDto requestDto = new NotificationRequestDto();
+            requestDto.setOwnerId(recipientId);
+            requestDto.setTitle("đã gửi tin nhắn");
+            requestDto.setContent(notificationContent);
+            requestDto.setLinkedResourceId(conversationId);
+            requestDto.setNotificationType(NotificationType.MESSAGE);
+
+            notificationService.createNotification(requestDto, senderPrincipal);
         }
     }
 }

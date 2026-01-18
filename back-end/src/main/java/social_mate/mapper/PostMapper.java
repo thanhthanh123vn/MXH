@@ -50,5 +50,6 @@ public interface PostMapper {
 // mapper cho post profile
     @Mapping(target = "mediaUrls", ignore = true)
     @Mapping(target = "totalLikes", ignore = true)
+    @Mapping(source = "user", target = "user")
     ProfilePostResponseDto toDto(Post post);
 }

@@ -4,9 +4,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // Nhớ thêm Transactional
 import social_mate.dto.request.CommentRequestDto;
+import social_mate.dto.request.NotificationRequestDto;
 import social_mate.dto.response.CommentResponseDto;
 import social_mate.entity.User;
 import social_mate.entity.UserPrincipal;
+import social_mate.entity.enums.NotificationType;
 import social_mate.entity.post.Comment;
 import social_mate.entity.post.CommentLike;
 import social_mate.entity.post.Post;
@@ -30,24 +32,30 @@ public class CommentService {
     private final UserRepository userRepository;
     private final PostRepository postRepository;
     private final CommentLikeRepository commentLikeRepository;
+    private final NotificationService notificationService;
+
     @Transactional
     public CommentResponseDto createComment(Long postId, CommentRequestDto request, UserPrincipal userPrincipal) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Bài viết không tồn tại"));
-        User user = userPrincipal.getUser();
+        User user = userPrincipal.getUser(); // Người đang comment (Actor)
 
         Comment comment = commentMapper.toEntity(request);
         comment.setPost(post);
         comment.setUser(user);
 
         // --- XỬ LÝ TRẢ LỜI BÌNH LUẬN ---
+        Comment parentComment = null;
         if (request.getParentId() != null) {
-            Comment parent = commentRepository.findById(request.getParentId())
+            parentComment = commentRepository.findById(request.getParentId())
                     .orElseThrow(() -> new RuntimeException("Bình luận cha không tồn tại"));
-            comment.setParentComment(parent);
+            comment.setParentComment(parentComment);
         }
 
         Comment savedComment = commentRepository.save(comment);
+
+        // --- 2. GỌI HÀM GỬI THÔNG BÁO ---
+        sendNotificationTypeComment(post, savedComment, userPrincipal);
 
         // Trả về DTO
         CommentResponseDto response = commentMapper.toResponse(savedComment);
@@ -166,5 +174,62 @@ public class CommentService {
 
         Comment updatedComment = commentRepository.save(comment);
         return commentMapper.toResponse(updatedComment);
+    }
+
+    /**
+     * Gửi thông báo bình luận
+     * @param post Bài viết được bình luận
+     * @param comment Bình luận vừa tạo
+     * @param actorPrincipal Người thực hiện bình luận
+     */
+    private void sendNotificationTypeComment(Post post, Comment comment, UserPrincipal actorPrincipal) {
+        User actor = actorPrincipal.getUser();
+        User postOwner = post.getUser();
+
+        // 1. Thông báo cho chủ bài viết (nếu người comment KHÔNG PHẢI chủ bài viết)
+        if (!actor.getId().equals(postOwner.getId())) {
+            createNotification(
+                    postOwner.getId(), // Người nhận: Chủ bài viết
+                    "đã bình luận về bài viết của bạn",
+                    comment.getContent(), // Nội dung comment
+                    post.getId(), // Link đến bài viết
+                    actorPrincipal
+            );
+        }
+
+        // 2. Thông báo cho người được trả lời (nếu là reply và người được trả lời KHÔNG PHẢI người đang comment)
+        // Lưu ý: Nếu người được trả lời cũng chính là chủ bài viết thì ở bước 1 đã thông báo rồi,
+        // tùy logic bạn có muốn gửi 2 thông báo hay không. Ở đây tôi sẽ gửi riêng biệt.
+        if (comment.getParentComment() != null) {
+            User parentOwner = comment.getParentComment().getUser();
+
+            // Điều kiện: Người trả lời KHÔNG PHẢI người được trả lời VÀ Người được trả lời KHÔNG PHẢI chủ bài viết (để tránh spam 2 noti)
+            // Nếu bạn muốn chủ bài viết nhận 2 noti (1 cái: "đã cmt vào bài", 1 cái: "đã trả lời cmt của bạn") thì bỏ điều kiện sau cùng đi.
+            if (!actor.getId().equals(parentOwner.getId()) && !parentOwner.getId().equals(postOwner.getId())) {
+                createNotification(
+                        parentOwner.getId(), // Người nhận: Chủ comment gốc
+                        "đã trả lời bình luận của bạn",
+                        comment.getContent(),
+                        post.getId(),
+                        actorPrincipal
+                );
+            }
+        }
+    }
+
+    // Hàm helper để tạo và gửi notification
+    private void createNotification(Long ownerId, String title, String content, Long linkedResourceId, UserPrincipal actorPrincipal) {
+        NotificationRequestDto requestDto = new NotificationRequestDto();
+        requestDto.setOwnerId(ownerId);
+        requestDto.setTitle(title);
+
+        // Cắt nội dung nếu quá dài để hiển thị đẹp hơn
+        String displayContent = content.length() > 50 ? content.substring(0, 50) + "..." : content;
+        requestDto.setContent(displayContent);
+
+        requestDto.setLinkedResourceId(linkedResourceId); // ID bài viết
+        requestDto.setNotificationType(NotificationType.COMMENT);
+
+        notificationService.createNotification(requestDto, actorPrincipal);
     }
 }

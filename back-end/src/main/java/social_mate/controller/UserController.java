@@ -6,6 +6,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import lombok.RequiredArgsConstructor;
+import social_mate.config.WebSocketEventListener;
 import social_mate.dto.request.UpdateProfileRequestDto;
 import social_mate.dto.response.ProfileResponseDto;
 import social_mate.dto.response.UserResponseDto;
@@ -14,6 +15,7 @@ import social_mate.entity.UserPrincipal;
 import social_mate.service.UserService;
 
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("api/v1/user")
@@ -21,6 +23,7 @@ import java.util.List;
 public class UserController {
 	
 	private final UserService userService;
+	private final WebSocketEventListener  webSocketEventListener;
 	
 	@GetMapping("/me")
 	public ResponseEntity<UserResponseDto> getMe(@AuthenticationPrincipal UserPrincipal userPrincipal){
@@ -44,6 +47,14 @@ public class UserController {
 				userService.searchUsers(keyword, userPrincipal)
 		);
 	}
+
+	@GetMapping("/online")
+	public ResponseEntity<Set<Long>> getOnlineUsers() {
+		// Lấy danh sách ID đang online từ bộ nhớ Socket
+		Set<Long> onlineIds = webSocketEventListener.getOnlineUserIds();
+		return ResponseEntity.ok(onlineIds);
+	}
+
 	@GetMapping()
 	public ResponseEntity<List<UserResponseDto>> getUsersByUsername(@RequestParam(name = "username") String username ){
 

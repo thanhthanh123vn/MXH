@@ -27,6 +27,7 @@ public class PostController {
     private final PostService postService;
     private final ObjectMapper objectMapper; // 1. Inject ObjectMapper
 
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<PostResponseDto> createPost(
             @RequestPart("post") String postJson,
@@ -80,4 +81,25 @@ public class PostController {
         // Trả về map đơn giản hoặc gọi lại service để lấy số like mới nhất nếu muốn update realtime UI
         return ResponseEntity.ok(Collections.singletonMap("message", "Success"));
     }
+
+    // --- Lấy chi tiết 1 bài viết ---
+
+    @GetMapping("/feed")
+    public ResponseEntity<List<PostResponseDto>> getNewsFeed(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        List<PostResponseDto> posts = postService.getFriendPosts(userPrincipal);
+        return ResponseEntity.ok(posts);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<PostResponseDto> getPostById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        PostResponseDto post = postService.getPostById(id, userPrincipal);
+        return ResponseEntity.ok(post);
+    }
+
+
 }

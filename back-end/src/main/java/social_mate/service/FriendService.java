@@ -1,14 +1,17 @@
 package social_mate.service;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
 import social_mate.dto.request.AddFriendRequestDto;
+import social_mate.dto.request.NotificationRequestDto;
 import social_mate.dto.response.FriendResponseDto;
 import social_mate.entity.Friend;
 import social_mate.entity.User;
 import social_mate.entity.UserPrincipal;
 import social_mate.entity.enums.FriendshipStatus;
+import social_mate.entity.enums.NotificationType;
 import social_mate.mapper.FriendMapper;
 import social_mate.repository.FriendRepository;
 import social_mate.repository.UserRepository;
@@ -23,6 +26,8 @@ public class FriendService {
     private final FriendRepository friendRepository;
     private final UserRepository userRepository;
     private final FriendMapper mapper;
+    private final NotificationService notificationService;
+
     public List<FriendResponseDto> getFriends(UserPrincipal userPrincipal) {
         if (userPrincipal == null) {
             throw new IllegalStateException("UserPrincipal không được null");
@@ -36,6 +41,7 @@ public class FriendService {
                 .map(mapper::toFriendResponse)
                 .toList();
     }
+
     public List<FriendResponseDto> getFriendRequests(UserPrincipal userPrincipal) {
         if (userPrincipal == null) {
             throw new IllegalStateException("UserPrincipal không được null");
@@ -49,6 +55,8 @@ public class FriendService {
                 .map(mapper::toFriendResponse)
                 .toList();
     }
+
+    @Transactional
     public void sendFriendRequest(AddFriendRequestDto request, UserPrincipal userPrincipal) throws BadRequestException {
 
         User sender = userPrincipal.getUser();
@@ -56,11 +64,11 @@ public class FriendService {
         Long receiverId = request.getReceiverid();
 
         if (senderId.equals(receiverId)) {
-            // xử lí lại theo custom exeption tự handle
             throw new BadRequestException("Cannot add yourself");
         }
         Optional<Friend> existingOpt =
                 friendRepository.findFriendBetweenUsers(senderId, receiverId);
+
         if (existingOpt.isPresent()) {
             Friend existing = existingOpt.get();
 
@@ -79,6 +87,9 @@ public class FriendService {
                     existing.setReceiverId(receiverId);
                     existing.setStatus(FriendshipStatus.PENDING);
                     friendRepository.save(existing);
+
+                    // [1] Gửi thông báo: Lời mời kết bạn (isAccepted = false)
+                    sendNotificationTypeFriend(receiverId, userPrincipal, false);
                     return;
                 }
             }
@@ -90,15 +101,19 @@ public class FriendService {
         friend.setReceiverId(receiverId);
         friend.setStatus(FriendshipStatus.PENDING);
         friendRepository.save(friend);
+
+        // [2] Gửi thông báo: Lời mời kết bạn (isAccepted = false)
+        sendNotificationTypeFriend(receiverId, userPrincipal, false);
     }
 
+    @Transactional
     public void acceptFriendRequest(Long senderId, UserPrincipal userPrincipal) {
 
-        Long receiverId = userPrincipal.getUser().getId();
+        Long receiverId = userPrincipal.getUser().getId(); // Người đang bấm chấp nhận (B)
 
         Friend friend = friendRepository
                 .findBySenderIdAndReceiverIdAndStatus(
-                        senderId,
+                        senderId, // Người gửi lời mời ban đầu (A)
                         receiverId,
                         FriendshipStatus.PENDING
                 )
@@ -108,11 +123,16 @@ public class FriendService {
 
         friend.setStatus(FriendshipStatus.ACCEPTED);
         friendRepository.save(friend);
+
+        // [3] Gửi thông báo: Đã chấp nhận (isAccepted = true)
+        // Người nhận thông báo là senderId (A)
+        // Người thực hiện hành động là userPrincipal (B)
+        sendNotificationTypeFriend(senderId, userPrincipal, true);
     }
+
+    @Transactional
     public void rejectFriendRequest(Long senderId, UserPrincipal userPrincipal) {
-
         Long receiverId = userPrincipal.getUser().getId();
-
 
         Friend friend = friendRepository
                 .findBySenderIdAndReceiverIdAndStatus(
@@ -127,6 +147,7 @@ public class FriendService {
         friend.setStatus(FriendshipStatus.REJECTED);
         friendRepository.save(friend);
     }
+
     // block user
     public void blockUser(Long targetUserId, UserPrincipal principal) {
         Long currentUserId = principal.getUser().getId();
@@ -161,6 +182,7 @@ public class FriendService {
 
         friendRepository.save(friend);
     }
+
     //unblocked
     public void unblockUser(Long targetUserId, UserPrincipal principal) {
         Long currentUserId = principal.getUser().getId();
@@ -182,6 +204,7 @@ public class FriendService {
 
         friendRepository.delete(friend);
     }
+
     //unfriend
     public void unfriend(Long friendUserId, UserPrincipal principal) throws BadRequestException {
 
@@ -206,5 +229,46 @@ public class FriendService {
 
         // 4. delete record
         friendRepository.delete(friend);
+    }
+
+    // ========================================================================
+    // LOGIC GỬI THÔNG BÁO KẾT BẠN
+    // ========================================================================
+
+    /**
+     * Tạo thông báo kết bạn.
+     *
+     * @param targetUserId   ID người nhận thông báo.
+     * @param actorPrincipal Người thực hiện hành động (Gửi hoặc Chấp nhận).
+     * @param isAccepted     false: Gửi lời mời, true: Chấp nhận lời mời.
+     */
+    private void sendNotificationTypeFriend(Long targetUserId, UserPrincipal actorPrincipal, boolean isAccepted) {
+        String actorName = actorPrincipal.getUser().getUsername(); // Hoặc getFullName nếu có
+
+        NotificationRequestDto requestDto = new NotificationRequestDto();
+
+        // 1. Người nhận thông báo
+        requestDto.setOwnerId(targetUserId);
+
+        // 2. ID để điều hướng (Click vào thông báo sẽ sang trang cá nhân người thực hiện)
+        requestDto.setLinkedResourceId(actorPrincipal.getUser().getId());
+
+        // 3. Loại thông báo (Dùng Enum FRIENDS như bạn đã cung cấp)
+        requestDto.setNotificationType(NotificationType.FRIENDS);
+
+        if (isAccepted) {
+            // TRƯỜNG HỢP: Đã chấp nhận kết bạn
+            // Hiển thị FE: [User A] + [đã chấp nhận lời mời kết bạn] + : + [Giờ đây hai bạn có thể nhắn tin...]
+            requestDto.setTitle("đã chấp nhận lời mời kết bạn");
+            requestDto.setContent("Giờ đây hai bạn đã trở thành bạn bè.");
+        } else {
+            // TRƯỜNG HỢP: Gửi lời mời mới
+            // Hiển thị FE: [User A] + [đã gửi lời mời kết bạn] + : + [Nhấn để xem trang cá nhân...]
+            requestDto.setTitle("đã gửi lời mời kết bạn");
+            requestDto.setContent("Nhấn vào đây để phản hồi.");
+        }
+
+        // Gọi service để lưu và bắn socket
+        notificationService.createNotification(requestDto, actorPrincipal);
     }
 }

@@ -78,7 +78,7 @@ public class ConversationService {
 
         String senderNameLastMessage = conversation.getSenderNameLastMessage();
         if (currentUser.getId().equals(conversation.getSenderIdLastMessage())) {
-            senderNameLastMessage = "you";
+            senderNameLastMessage = "bạn";
         }
 
         Long unSeenCount = messageRepository.countUnseenMessages(conversation.getId(), currentUser.getId());
@@ -90,7 +90,10 @@ public class ConversationService {
                 conversationName,
                 conversationAvatar,
                 conversation.getUpdatedAt(),
-                unSeenCount
+                unSeenCount,
+                conversation.getSenderIdLastMessage(),
+                conversation.getConversationType()
+
         );
     }
 
